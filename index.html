@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Score USEPT - Universitas Sriwijaya</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --primary:#0b5d4b; --primary-2:#0f7a63; --accent:#15a37a;
+    --mint:#e9f8f3; --mint-2:#d4f1e6; --border:#c9ece0;
+    --text:#1d2b28; --muted:#6b7f79; --amber:#f5a524; --amber-bg:#fff4dc;
+    --red:#e5484d; --red-bg:#fde8e8; --card:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Inter,Roboto,Arial,sans-serif;background:#f3faf7;color:var(--text);font-size:14px}
+  button,select,input{font:inherit}
+  .hidden{display:none!important}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary),var(--accent))}
+  .login-card{background:#fff;border-radius:18px;padding:36px 32px;width:min(380px,92vw);text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+  .login-card h1{margin:12px 0 4px;font-size:20px;color:var(--primary)}
+  .login-card p{color:var(--muted);margin:0 0 22px}
+  .btn-google{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:600;display:flex;gap:10px;align-items:center;justify-content:center}
+  .btn-google:hover{background:var(--mint)}
+  .denied{color:var(--red);margin-top:14px;font-size:13px}
+
+  /* ---------- LAYOUT ---------- */
+  #app{display:grid;grid-template-columns:270px 1fr;min-height:100vh}
+  aside{background:#fff;border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px}
+  main{padding:18px 22px;min-width:0}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand b{color:var(--primary);font-size:15px}
+  .brand small{display:block;color:var(--muted);font-size:11px}
+
+  .clock{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-radius:14px;padding:14px 16px}
+  .clock .jam{font-family:Consolas,monospace;font-size:28px;font-weight:700;letter-spacing:1px}
+  .clock .tgl{font-size:12px;opacity:.85}
+
+  .panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px}
+  .panel h3{margin:0 0 10px;font-size:12px;letter-spacing:.5px;color:var(--primary);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+
+  /* kalender */
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:600}
+  .cal-head button,.nav-btn{background:var(--mint);border:1px solid var(--border);border-radius:8px;width:28px;height:28px;cursor:pointer;color:var(--primary)}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+  .cal-grid .dow{font-size:11px;color:var(--muted);font-weight:600;padding:4px 0}
+  .cal-grid .dow.min{color:#e5484d}
+  .day{height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;border:1px solid transparent;position:relative}
+  .day.ada{border-color:var(--accent);background:var(--mint-2);color:var(--primary);font-weight:700}
+  .day.pilih{background:var(--primary);color:#fff}
+  .day.kosong{cursor:default;color:#c1cdc9}
+  .cal-legend{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:8px}
+  .cal-legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;background:var(--accent)}
+  .cal-legend span.pl::before{background:var(--primary)}
+
+  .btn{padding:9px 12px;border-radius:10px;border:1px solid var(--primary);cursor:pointer;font-weight:600;font-size:13px}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:var(--primary-2)}
+  .btn-ghost{background:#fff;color:var(--primary)}
+  .btn-ghost:hover{background:var(--mint)}
+  .btn-full{width:100%}
+  select,input[type=text],input[type=search]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text)}
+  .stack{display:flex;flex-direction:column;gap:8px}
+  .log{font-size:12px;color:var(--muted);max-height:110px;overflow:auto;white-space:pre-line}
+  .mask{font-family:Consolas,monospace;letter-spacing:2px;color:var(--muted)}
+
+  /* ---------- HEADER ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .topbar h2{margin:0;color:var(--primary);font-size:20px}
+  .topbar small{color:var(--muted)}
+  .user{display:flex;gap:10px;align-items:center}
+  .badge{background:var(--mint-2);color:var(--primary);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700}
+
+  /* ---------- KARTU STATISTIK ---------- */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;gap:12px;align-items:center}
+  .ico{width:42px;height:42px;border-radius:12px;background:var(--mint-2);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700}
+  .card .lbl{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+  .card .val{font-size:22px;font-weight:700;color:var(--primary)}
+  .card .sub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+  .card.hi .val{color:#0a8a5f}
+  .card.lo .val{color:var(--amber)}
+
+  .grid-2{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-bottom:16px}
+  @media (max-width:1100px){.grid-2{grid-template-columns:1fr}}
+  .chart-box{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;height:300px}
+
+  /* ---------- TABEL ---------- */
+  .tabs{display:flex;gap:6px;margin-bottom:10px}
+  .tab{padding:8px 14px;border-radius:10px 10px 0 0;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--muted);font-weight:600}
+  .tab.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--border);border-radius:14px 14px 0 0;padding:12px}
+  .toolbar input[type=search]{flex:1;min-width:220px}
+  .table-wrap{overflow:auto;background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;max-height:65vh}
+  table{border-collapse:collapse;width:100%;min-width:900px}
+  thead th{position:sticky;top:0;background:var(--primary);color:#fff;font-size:11px;letter-spacing:.4px;text-transform:uppercase;padding:10px 8px;text-align:center;white-space:nowrap}
+  tbody td{padding:9px 8px;border-bottom:1px solid #eef6f3;font-size:12.5px;white-space:nowrap}
+  tbody tr:nth-child(even){background:#fbfefd}
+  tbody tr:hover{background:var(--mint)}
+  td.c{text-align:center}
+  td.mono{font-family:Consolas,monospace}
+  td.skor{font-weight:700;color:var(--primary);text-align:center}
+  .pager{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;color:var(--muted);flex-wrap:wrap;gap:8px}
+  .pager .btns{display:flex;gap:6px}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--mint-2);color:var(--primary);font-size:11px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+  <div class="login-card">
+    <div style="font-size:40px">🎓</div>
+    <h1>Data Score USEPT</h1>
+    <p>Universitas Sriwijaya · Khusus Administrator</p>
+    <button class="btn-google" id="btnLogin">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6C12.3 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.8A14.5 14.5 0 0 1 9.5 24c0-1.7.3-3.3.9-4.8l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.7-4-13.6-9.7l-7.8 6C6.5 42.6 14.6 48 24 48z"/></svg>
+      Masuk dengan Google
+    </button>
+    <div class="denied hidden" id="denied">Akun ini tidak terdaftar sebagai Administrator.</div>
+  </div>
+</section>
+
+<!-- ============ APLIKASI ============ -->
+<div id="app" class="hidden">
+  <aside>
+    <div class="brand">
+      <div class="ico">U</div>
+      <div><b>USEPT Unsri</b><small>Monitoring Score</small></div>
+    </div>
+
+    <div class="clock">
+      <div class="jam" id="jam">--:--:--</div>
+      <div class="tgl" id="tgl">-</div>
+    </div>
+
+    <div class="panel">
+      <div class="cal-head">
+        <button class="nav-btn" id="calPrev">‹</button>
+        <span id="calTitle">-</span>
+        <button class="nav-btn" id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend"><span>Ada tes</span><span class="pl">Dipilih</span></div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-ghost btn-full" id="calReset">Semua tanggal</button>
+      </div>
+    </div>
+
+    <div class="panel stack" id="panelScrape">
+      <h3>Penarikan Data</h3>
+      <select id="scSumber">
+        <option value="both">Mahasiswa &amp; Umum</option>
+        <option value="mahasiswa">Mahasiswa saja</option>
+        <option value="umum">Umum saja</option>
+      </select>
+      <button class="btn btn-primary btn-full" id="btnTerkini">⟳ Tarik data terkini (7 hari)</button>
+      <button class="btn btn-ghost btn-full" id="btnSemua">Tarik 2020 – sekarang</button>
+      <div class="log" id="scLog">Belum ada penarikan.</div>
+    </div>
+
+    <div class="panel" style="font-size:12px;color:var(--muted)">
+      Sesi PHPSESSID<br><span class="mask">••••••••••••••••</span><br>
+      <span style="font-size:11px">Disimpan aman di Supabase Secrets</span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h2>Dashboard Score USEPT</h2>
+        <small id="subtitle">-</small>
+      </div>
+      <div class="user">
+        <span class="badge" id="roleBadge">ADMIN</span>
+        <span id="userEmail" style="color:var(--muted)"></span>
+        <button class="btn btn-ghost" id="btnLogout">Keluar</button>
+      </div>
+    </div>
+
+    <!-- filter aktif -->
+    <div class="toolbar" style="border-radius:14px;margin-bottom:12px">
+      <select id="fFak"><option value="">Semua fakultas</option></select>
+      <select id="fProdi"><option value="">Semua program studi</option></select>
+      <span id="fTgl" class="chip">Semua tanggal</span>
+      <button class="btn btn-ghost" id="btnReset">Reset filter</button>
+    </div>
+
+    <!-- kartu statistik -->
+    <div class="cards">
+      <div class="card"><div class="ico">👥</div><div><div class="lbl">Total Mahasiswa</div><div class="val" id="stTotalM">0</div></div></div>
+      <div class="card"><div class="ico">🏢</div><div><div class="lbl">Total Umum</div><div class="val" id="stTotalU">0</div></div></div>
+      <div class="card"><div class="ico">📊</div><div><div class="lbl">Rata-rata Score</div><div class="val" id="stAvg">-</div></div></div>
+      <div class="card hi"><div class="ico">🏆</div><div><div class="lbl">Score Tertinggi</div><div class="val" id="stMax">-</div><div class="sub" id="stMaxN"></div></div></div>
+      <div class="card lo"><div class="ico">📉</div><div><div class="lbl">Score Terendah</div><div class="val" id="stMin">-</div><div class="sub" id="stMinN"></div></div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="chart-box"><canvas id="chartFak"></canvas></div>
+      <div class="chart-box"><canvas id="chartSkor"></canvas></div>
+    </div>
+
+    <!-- tabel -->
+    <div class="tabs">
+      <div class="tab on" data-tab="mahasiswa">Score Mahasiswa</div>
+      <div class="tab" data-tab="umum">Score Umum</div>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="q" placeholder="Cari nomor peserta, nama, NIM, nomor identitas, HP...">
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span id="pagerInfo">-</span>
+      <div class="btns">
+        <button class="btn btn-ghost" id="pPrev">‹ Sebelumnya</button>
+        <button class="btn btn-ghost" id="pNext">Berikutnya ›</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ===================== KONFIGURASI ===================== */
+const SUPABASE_URL = "https://xwxzvrigpjdtcghqthem.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3eHp2cmlncGpkdGNnaHF0aGVtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NTUxMTg4MiwiZXhwIjoyMTExMDg3ODgyfQ.ZHaRvSM4kUCPzwrn3e-GOqBWhii_qHxURF95ZfOfXLo";
+const FN_SCRAPE = "scrape-usept";
+const TAHUN_MULAI = 2020;
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const T = { mahasiswa: "score_mahasiswa", umum: "score_umum" };
+const KOLOM = {
+  mahasiswa: [
+    ["no_urut","NO"],["pin","PIN"],["nomor_peserta","NOMOR PESERTA"],["nim","NIM"],["nama","NAMA"],
+    ["telp_hp","TELP/HP"],["tanggal_lahir","TANGGAL LAHIR"],["tanggal_test","TANGGAL TEST"],
+    ["fakultas","FAKULTAS"],["program_studi","PROGRAM STUDI"],["listening","LISTENING"],
+    ["reading","READING"],["structure","STRUCTURE"],["score","SCORE"],["keterangan","KETERANGAN"]
+  ],
+  umum: [
+    ["no_urut","NO"],["pin","PIN"],["nomor_peserta","NOMOR PESERTA"],["nomor_identitas","NOMOR IDENTITAS"],
+    ["nama","NAMA"],["telp_hp","TELP/HP"],["tanggal_lahir","TANGGAL LAHIR"],["tanggal_test","TANGGAL TEST"],
+    ["instansi","INSTANSI/UNIVERSITAS/SEKOLAH"],["listening","LISTENING"],["reading","READING"],
+    ["structure","STRUCTURE"],["score","SCORE"],["certificate_number","CERTIFICATE NUMBER"]
+  ]
+};
+
+const S = {
+  tab: "mahasiswa", page: 1, per: 25, total: 0,
+  date: null, fak: "", prodi: "", q: "",
+  calY: new Date().getFullYear(), calM: new Date().getMonth(), marks: new Set()
+};
+const $ = id => document.getElementById(id);
+const esc = v => (v == null ? "" : String(v)).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtTgl = s => s ? s.split("-").reverse().join("/") : "-";
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const BULAN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const HARI = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+
+/* ===================== JAM ===================== */
+function tickJam(){
+  const d = new Date();
+  $("jam").textContent = d.toLocaleTimeString("id-ID",{hour12:false});
+  $("tgl").textContent = `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+}
+setInterval(tickJam, 1000); tickJam();
+
+/* ===================== AUTH ===================== */
+$("btnLogin").onclick = () => sb.auth.signInWithOAuth({
+  provider: "google",
+  options: { redirectTo: location.href.split("#")[0] }
+});
+$("btnLogout").onclick = () => sb.auth.signOut().then(() => location.reload());
+
+sb.auth.onAuthStateChange((_e, session) => { if (session) initAdmin(session.user); });
+sb.auth.getSession().then(({data}) => { if (data.session) initAdmin(data.session.user); });
+
+async function initAdmin(user){
+  const { data } = await sb.from("admins").select("role,nama").ilike("email", user.email).maybeSingle();
+  if (!data) {
+    $("denied").classList.remove("hidden");
+    await sb.auth.signOut();
+    return;
+  }
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("userEmail").textContent = user.email;
+  $("roleBadge").textContent = data.role === "super_admin" ? "SUPER ADMIN" : "ADMIN";
+  $("subtitle").textContent = "Data tahun " + TAHUN_MULAI + " – " + new Date().getFullYear();
+  $("btnTerkini").disabled = $("btnSemua").disabled = false;
+  await Promise.all([loadFilterOptions(), loadCalendarMarks(), refresh()]);
+}
+
+/* ===================== FILTER ===================== */
+function terapkanFilter(q, tab){
+  if (S.date) q = q.eq("tanggal_test", S.date);
+  if (tab === "mahasiswa") {
+    if (S.fak) q = q.eq("fakultas", S.fak);
+    if (S.prodi) q = q.eq("program_studi", S.prodi);
+  }
+  if (S.q) {
+    const k = S.q.replace(/[,()]/g, " ");
+    q = tab === "mahasiswa"
+      ? q.or(`nama.ilike.%${k}%,nomor_peserta.ilike.%${k}%,nim.ilike.%${k}%,telp_hp.ilike.%${k}%`)
+      : q.or(`nama.ilike.%${k}%,nomor_peserta.ilike.%${k}%,nomor_identitas.ilike.%${k}%,telp_hp.ilike.%${k}%`);
+  }
+  return q;
+}
+
+async function loadFilterOptions(){
+  const { data } = await sb.from(T.mahasiswa).select("fakultas,program_studi").limit(5000);
+  const fakSet = new Set(), prodiMap = {};
+  (data || []).forEach(r => {
+    if (r.fakultas) {
+      fakSet.add(r.fakultas);
+      (prodiMap[r.fakultas] ||= new Set());
+      if (r.program_studi) prodiMap[r.fakultas].add(r.program_studi);
+    }
+  });
+  window.PRODI = prodiMap;
+  $("fFak").innerHTML = `<option value="">Semua fakultas</option>` +
+    [...fakSet].sort().map(f => `<option>${esc(f)}</option>`).join("");
+  isiProdi();
+}
+function isiProdi(){
+  const list = S.fak ? [...(PRODI[S.fak] || [])] : Object.values(PRODI).flatMap(s => [...s]);
+  $("fProdi").innerHTML = `<option value="">Semua program studi</option>` +
+    [...new Set(list)].sort().map(p => `<option>${esc(p)}</option>`).join("");
+}
+$("fFak").onchange = e => { S.fak = e.target.value; S.prodi = ""; isiProdi(); S.page = 1; refresh(); };
+$("fProdi").onchange = e => { S.prodi = e.target.value; S.page = 1; refresh(); };
+$("q").oninput = debounce(e => { S.q = e.target.value.trim(); S.page = 1; refresh(); }, 350);
+$("btnReset").onclick = () => {
+  S.fak = S.prodi = S.q = ""; S.date = null; S.page = 1;
+  $("fFak").value = ""; $("q").value = ""; isiProdi();
+  renderCalendar(); refresh();
+};
+function debounce(fn, ms){ let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+document.querySelectorAll(".tab").forEach(el => el.onclick = () => {
+  S.tab = el.dataset.tab; S.page = 1;
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === el));
+  $("fFak").parentElement.classList.toggle("hidden", false);
+  refresh();
+});
+
+/* ===================== KALENDER ===================== */
+async function loadCalendarMarks(){
+  const awal = iso(new Date(S.calY, S.calM, 1));
+  const akhir = iso(new Date(S.calY, S.calM + 1, 0));
+  S.marks = new Set();
+  for (const t of Object.values(T)) {
+    const { data } = await sb.from(t).select("tanggal_test")
+      .gte("tanggal_test", awal).lte("tanggal_test", akhir).limit(5000);
+    (data || []).forEach(r => r.tanggal_test && S.marks.add(r.tanggal_test));
+  }
+  renderCalendar();
+}
+
+function renderCalendar(){
+  $("calTitle").textContent = `${BULAN[S.calM]} ${S.calY}`;
+  let html = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"].map((h,i) =>
+    `<div class="dow ${i===0?'min':''}">${h}</div>`).join("");
+  const first = new Date(S.calY, S.calM, 1).getDay();
+  const hari = new Date(S.calY, S.calM + 1, 0).getDate();
+  for (let i = 0; i < first; i++) html += `<div></div>`;
+  for (let d = 1; d <= hari; d++){
+    const key = iso(new Date(S.calY, S.calM, d));
+    const cls = ["day", S.marks.has(key) ? "ada" : "kosong", S.date === key ? "pilih" : ""].join(" ");
+    html += `<div class="${cls}" data-d="${key}">${d}</div>`;
+  }
+  $("calGrid").innerHTML = html;
+  $("calGrid").querySelectorAll("[data-d]").forEach(el => el.onclick = () => {
+    S.date = S.date === el.dataset.d ? null : el.dataset.d;
+    S.page = 1; renderCalendar(); refresh();
+  });
+}
+$("calPrev").onclick = () => { S.calM--; if (S.calM < 0){ S.calM = 11; S.calY--; } loadCalendarMarks(); };
+$("calNext").onclick = () => { S.calM++; if (S.calM > 11){ S.calM = 0; S.calY++; } loadCalendarMarks(); };
+$("calReset").onclick = () => { S.date = null; S.page = 1; renderCalendar(); refresh(); };
+
+/* ===================== DATA & STATISTIK ===================== */
+async function refresh(){
+  $("fTgl").textContent = S.date ? "Tes: " + fmtTgl(S.date) : "Semua tanggal";
+  await Promise.all([loadStats(), loadTable(), loadCharts()]);
+}
+
+async function loadStats(){
+  for (const tab of Object.keys(T)) {
+    const id = tab === "mahasiswa" ? "stTotalM" : "stTotalU";
+    const { count } = await terapkanFilter(sb.from(T[tab]).select("*",{count:"exact",head:true}), tab);
+    $(id).textContent = (count ?? 0).toLocaleString("id-ID");
+  }
+  // statistik skor mengikuti tab aktif
+  const tab = S.tab;
+  const base = () => terapkanFilter(sb.from(T[tab]).select("nama,score,nomor_peserta").not("score","is",null), tab);
+  const [{ data: mx }, { data: mn }, { data: all }] = await Promise.all([
+    base().order("score",{ascending:false}).limit(1),
+    base().order("score",{ascending:true}).limit(1),
+    terapkanFilter(sb.from(T[tab]).select("score").not("score","is",null), tab).limit(10000)
+  ]);
+  const rata = all && all.length ? all.reduce((a,b) => a + Number(b.score), 0) / all.length : null;
+  $("stAvg").textContent = rata == null ? "-" : rata.toFixed(1);
+  $("stMax").textContent = mx?.[0]?.score ?? "-";
+  $("stMaxN").textContent = mx?.[0]?.nama ?? "";
+  $("stMin").textContent = mn?.[0]?.score ?? "-";
+  $("stMinN").textContent = mn?.[0]?.nama ?? "";
+  $("subtitle").textContent = `${tab === "mahasiswa" ? "Score Mahasiswa" : "Score Umum"} · ${S.date ? "tes " + fmtTgl(S.date) : "semua tanggal"}`;
+}
+
+let chFak, chSkor;
+async function loadCharts(){
+  const tab = S.tab;
+  const { data } = await terapkanFilter(sb.from(T[tab]).select(tab === "mahasiswa" ? "fakultas,score,listening,reading,structure" : "instansi,score,listening,reading,structure"), tab).limit(10000);
+  const grup = {};
+  const kelompok = tab === "mahasiswa" ? "fakultas" : "instansi";
+  (data || []).forEach(r => {
+    const k = r[kelompok] || "Lainnya";
+    (grup[k] ||= {n:0,s:0}); grup[k].n++; grup[k].s += Number(r.score || 0);
+  });
+  const labels = Object.keys(grup).sort((a,b) => grup[b].n - grup[a].n).slice(0,10);
+  chFak?.destroy();
+  chFak = new Chart($("chartFak"), {
+    type: "bar",
+    data: { labels, datasets: [{ label: "Jumlah peserta", data: labels.map(l => grup[l].n), backgroundColor: "#0f7a63", borderRadius: 6 }] },
+    options: { maintainAspectRatio:false, plugins:{title:{display:true,text:"Peserta per " + (tab==="mahasiswa"?"fakultas":"instansi")+" (10 teratas)"}} }
+  });
+  const rerata = k => {
+    const rows = (data||[]).filter(r => r.listening != null);
+    if (!rows.length) return null;
+    return rows.reduce((a,r) => a + Number(r[k]), 0) / rows.length;
+  };
+  chSkor?.destroy();
+  chSkor = new Chart($("chartSkor"), {
+    type: "doughnut",
+    data: {
+      labels: ["Listening","Reading","Structure"],
+      datasets: [{ data: [rerata("listening"), rerata("reading"), rerata("structure")].map(v => v ? +v.toFixed(1) : 0),
+        backgroundColor: ["#0b5d4b","#15a37a","#f5a524"] }]
+    },
+    options: { maintainAspectRatio:false, plugins:{title:{display:true,text:"Rata-rata skor per bagian"}} }
+  });
+}
+
+async function loadTable(){
+  const tab = S.tab;
+  const cols = KOLOM[tab];
+  $("thead").innerHTML = "<tr>" + cols.map(c => `<th>${c[1]}</th>`).join("") + "</tr>";
+  const from = (S.page - 1) * S.per, to = from + S.per - 1;
+  const sel = cols.map(c => c[0]).join(",");
+  const { data, count, error } = await terapkanFilter(
+    sb.from(T[tab]).select(sel, { count: "exact" }), tab
+  ).order("tanggal_test", { ascending: false, nullsFirst: false }).range(from, to);
+
+  if (error) { $("tbody").innerHTML = `<tr><td class="empty" colspan="${cols.length}">${esc(error.message)}</td></tr>`; return; }
+  S.total = count || 0;
+  if (!data || !data.length) {
+    $("tbody").innerHTML = `<tr><td class="empty" colspan="${cols.length}">Tidak ada data untuk filter ini.</td></tr>`;
+  } else {
+    $("tbody").innerHTML = data.map((r, i) => "<tr>" + cols.map(([k]) => {
+      let v = r[k];
+      if (k === "no_urut") v = from + i + 1;
+      if (k === "tanggal_lahir" || k === "tanggal_test") v = fmtTgl(v);
+      if (k === "score") return `<td class="skor">${esc(v ?? "-")}</td>`;
+      if (k === "nomor_peserta" || k === "nim" || k === "pin" || k === "certificate_number" || k === "nomor_identitas")
+        return `<td class="c mono">${esc(v ?? "-")}</td>`;
+      if (["listening","reading","structure","no_urut"].includes(k)) return `<td class="c">${esc(v ?? "-")}</td>`;
+      return `<td>${esc(v ?? "-")}</td>`;
+    }).join("") + "</tr>").join("");
+  }
+  const totalHal = Math.max(1, Math.ceil(S.total / S.per));
+  $("pagerInfo").textContent = `Menampilkan ${S.total ? from+1 : 0}–${Math.min(from+S.per, S.total)} dari ${S.total.toLocaleString("id-ID")} data · Hal ${S.page}/${totalHal}`;
+  $("pPrev").disabled = S.page <= 1;
+  $("pNext").disabled = S.page >= totalHal;
+}
+$("pPrev").onclick = () => { S.page--; loadTable(); };
+$("pNext").onclick = () => { S.page++; loadTable(); };
+
+/* ===================== TARIK DATA (ADMIN) ===================== */
+function log(msg){
+  const el = $("scLog");
+  if (el.textContent.startsWith("Belum")) el.textContent = "";
+  el.textContent += msg + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+async function tarik(rentang){
+  const sumberList = $("scSumber").value === "both" ? ["mahasiswa","umum"] : [$("scSumber").value];
+  const today = new Date();
+  const jobs = [];
+  for (const s of sumberList) {
+    if (rentang === "terkini") {
+      const awal = new Date(today); awal.setDate(awal.getDate() - 7);
+      jobs.push({ sumber: s, tgl_awal: iso(awal), tgl_akhir: iso(today) });
+    } else {
+      for (let y = TAHUN_MULAI; y <= today.getFullYear(); y++) {
+        jobs.push({
+          sumber: s,
+          tgl_awal: `${y}-01-01`,
+          tgl_akhir: y === today.getFullYear() ? iso(today) : `${y}-12-31`
+        });
+      }
+    }
+  }
+  $("btnTerkini").disabled = $("btnSemua").disabled = true;
+  log(`▶ Mulai ${jobs.length} tugas (${rentang === "terkini" ? "terkini" : "2020–sekarang"})`);
+  let sukses = 0;
+  for (const j of jobs) {
+    log(`… ${j.sumber} ${j.tgl_awal} s/d ${j.tgl_akhir}`);
+    const { data, error } = await sb.functions.invoke(FN_SCRAPE, { body: j });
+    if (error || !data?.ok) {
+      log(`✗ ${data?.error || error?.message || "gagal"}`);
+      if (String(data?.error || "").includes("PHPSESSID")) break; // sesi habis: hentikan
+    } else {
+      sukses++; log(`✓ ${data.jumlah} data`);
+    }
+  }
+  log(`■ Selesai: ${sukses}/${jobs.length} berhasil`);
+  $("btnTerkini").disabled = $("btnSemua").disabled = false;
+  await Promise.all([loadFilterOptions(), loadCalendarMarks(), refresh()]);
+}
+$("btnTerkini").onclick = () => tarik("terkini");
+$("btnSemua").onclick = () => {
+  if (confirm("Tarik data dari 2020 sampai sekarang? Proses bisa beberapa menit.")) tarik("semua");
+};
+</script>
+</body>
+</html>
