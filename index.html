@@ -283,16 +283,24 @@ sb.auth.onAuthStateChange((_e, session) => { if (session) initAdmin(session.user
 sb.auth.getSession().then(({data}) => { if (data.session) initAdmin(data.session.user); });
 
 async function initAdmin(user){
-  const { data } = await sb.from("admins").select("role,nama").ilike("email", user.email).maybeSingle();
-  if (!data) {
+  const { data: role, error } = await sb.rpc("my_role");
+
+  if (error) {
+    $("denied").textContent = "Gagal memeriksa akses: " + error.message;
+    $("denied").classList.remove("hidden");
+    return;
+  }
+  if (!role) {
+    $("denied").textContent = "Akun " + user.email + " tidak terdaftar sebagai Administrator.";
     $("denied").classList.remove("hidden");
     await sb.auth.signOut();
     return;
   }
+
   $("login").classList.add("hidden");
   $("app").classList.remove("hidden");
   $("userEmail").textContent = user.email;
-  $("roleBadge").textContent = data.role === "super_admin" ? "SUPER ADMIN" : "ADMIN";
+  $("roleBadge").textContent = role === "super_admin" ? "SUPER ADMIN" : "ADMIN";
   $("subtitle").textContent = "Data tahun " + TAHUN_MULAI + " – " + new Date().getFullYear();
   $("btnTerkini").disabled = $("btnSemua").disabled = false;
   await Promise.all([loadFilterOptions(), loadCalendarMarks(), refresh()]);
